@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArboMundi : Pitch Deck Interactif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Earthy Harmony with modern accents -->
+    <!-- Application Structure Plan: La structure narrative guide l'utilisateur de l'inspiration (accueil) à l'action (carte), soutenue par la preuve (impact, communauté) et la vision stratégique (nouvelle section 'Vision'). L'ajout de la section 'Vision' et du générateur d'histoires IA enrichit le parcours sans le perturber, offrant des niveaux d'exploration plus profonds pour les utilisateurs engagés. -->
+    <!-- Visualization & Content Choices: 1. Carte Interactive (HTML/JS). 2. Graphiques (Chart.js) pour l'impact et l'analyse de marché. 3. Galerie Filtrable (HTML/JS). 4. Générateur d'histoires (Gemini API Fetch). 5. Feuille de route interactive (HTML/JS/CSS). Cette combinaison offre un panel complet d'interactions, de la découverte ludique à l'information stratégique. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F9F5F0; color: #3a4d39; }
+        h1, h2, h3, h4 { font-family: 'Lora', serif; color: #4F6F52; }
+       .nav-link.active { color: #4F6F52; border-bottom-color: #8B5CF6; font-weight: 600; }
+       .fade-in { animation: fadeIn 0.7s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        #map-container { position: relative; max-width: 100%; margin: auto; }
+       .hotspot { position: absolute; cursor: pointer; border-radius: 15px; transition: background-color 0.2s ease-in-out; }
+       .hotspot:hover { background-color: rgba(139, 92, 246, 0.3); }
+        #tree-marker { position: absolute; font-size: 2.5rem; transform: translate(-50%, -50%); transition: top 0.5s ease, left 0.5s ease; text-shadow: 0 0 10px white; }
+       .card-container { transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out; }
+       .card-container:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+       .filter-btn.active { background-color: #8B5CF6; color: white; }
+       .chart-container { position: relative; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; height: 350px; }
+       .btn-plant { background-color: #F59E0B; transition: all 0.3s ease; }
+       .btn-plant:hover { box-shadow: 0 4px 25px rgba(245, 158, 11, 0.4); transform: translateY(-2px); }
+       .roadmap-btn.active { background-color: #4F6F52; color: white; }
+       .gemini-spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #4F6F52; animation: spin 1s ease infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #purchase-modal { transition: opacity 0.3s ease; }
+        #modal-content { transition: transform 0.3s ease, opacity 0.3s ease; }
+        #purchase-modal.visible { opacity: 1; pointer-events: auto; }
+        #purchase-modal.visible #modal-content { transform: scale(1); opacity: 1; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-[#F9F5F0]/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <a href="#accueil" class="text-2xl font-bold text-[#4F6F52]"><img src="https://i.imgur.com/W1zWiNY.png" alt="Logo ArboMundi" width="45" height="45" style="display:inline-block;vertical-align:middle;margin-right:6px;">ArboMundi</a>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#vision" class="nav-link text-[#739072] hover:text-violet-600 px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent transition-all">Vision Stratégique</a>
+                        <a href="#produit" class="nav-link text-[#739072] hover:text-violet-600 px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent transition-all">L'Expérience Produit</a>
+                        <a href="#impact" class="nav-link text-[#739072] hover:text-violet-600 px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent transition-all">Mission & Impact</a>
+                        <a href="#communaute" class="nav-link text-[#739072] hover:text-violet-600 px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent transition-all">Potentiel Communautaire</a>
+                    </div>
+                </div>
+                <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-[#739072] hover:text-[#4F6F52] hover:bg-[#ECE3CE] focus:outline-none">
+                        <span class="sr-only">Ouvrir le menu principal</span>
+                        <svg id="menu-icon-open" class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                        <svg id="menu-icon-close" class="hidden h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#vision" class="nav-link-mobile text-[#739072] hover:text-violet-600 block px-3 py-2 rounded-md text-base font-medium">Vision Stratégique</a>
+                <a href="#produit" class="nav-link-mobile text-[#739072] hover:text-violet-600 block px-3 py-2 rounded-md text-base font-medium">L'Expérience Produit</a>
+                <a href="#impact" class="nav-link-mobile text-[#739072] hover:text-violet-600 block px-3 py-2 rounded-md text-base font-medium">Mission & Impact</a>
+                <a href="#communaute" class="nav-link-mobile text-[#739072] hover:text-violet-600 block px-3 py-2 rounded-md text-base font-medium">Potentiel Communautaire</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="accueil" class="py-20 md:py-28 bg-white">
+             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h1 class="text-4xl md:text-6xl font-bold leading-tight">
+                    Projet ArboMundi : <span class="block text-[#739072]">Le Pitch Deck Interactif</span>
+                </h1>
+                <p class="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-[#3a4d39]">
+                    Ce document interactif présente le plan stratégique d'ArboMundi, un projet qui transforme l'engagement écologique en une expérience tangible, personnelle et artistique. Explorez chaque section pour comprendre notre vision, notre produit, notre marché et notre plan d'action.
+                </p>
+            </div>
+        </section>
+
+        <section id="vision" class="py-20 md:py-24">
+            <div class="container mx-auto px-4">
+                <header class="text-center mb-16">
+                    <h2 class="text-5xl font-bold pb-2 border-b-2 border-violet-200 inline-block">Vision Stratégique</h2>
+                    <p class="text-xl mt-4 text-[#739072] max-w-3xl mx-auto">ArboMundi a pour ambition de devenir la référence de l'écologie personnelle et visible. Nous voulons créer un pont entre l'intention d'agir et la matérialisation de l'impact, en s'appuyant sur un modèle économique durable.</p>
+                </header>
+
+                <div class="bg-white p-8 md:p-12 rounded-2xl shadow-lg mb-20">
+                    <h3 class="text-3xl font-bold text-center mb-8">Le Parcours Client au Coeur du Modèle</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+                        <div class="fade-in">
+                            <p class="text-5xl mb-3">📢</p>
+                            <h4 class="text-xl font-bold mb-2">1. Acquisition & Achat Initial</h4>
+                            <p>Le client découvre le projet via une campagne pub. Il est incité à faire son premier achat : un "Kit de Démarrage" contenant une toile du monde et son premier arbre/sticker.</p>
+                        </div>
+                        <div class="fade-in" style="animation-delay: 0.2s;">
+                            <p class="text-5xl mb-3">🌱</p>
+                            <h4 class="text-xl font-bold mb-2">2. Impact & Fulfillment</h4>
+                            <p>La commande déclenche la plantation via nos partenaires. Nous envoyons le kit physique, matérialisant l'impact du client chez lui.</p>
+                        </div>
+                        <div class="fade-in" style="animation-delay: 0.4s;">
+                            <p class="text-5xl mb-3">✨</p>
+                            <h4 class="text-xl font-bold mb-2">3. Engagement & Rétention</h4>
+                            <p>Le client place son sticker et voit sa "forêt" commencer. Il est ensuite incité à acheter de nouveaux arbres (stickers seuls) pour continuer sa collection.</p>
+                        </div>
+                        <div class="fade-in" style="animation-delay: 0.6s;">
+                             <p class="text-5xl mb-3">🌍</p>
+                            <h4 class="text-xl font-bold mb-2">4. Communauté & Viralité</h4>
+                            <p>Sa toile devient un objet de fierté et de discussion, générant du bouche-à-oreille. L'évolution de sa forêt l'encourage à partager son œuvre en ligne (UGC).</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20">
+                     <div class="bg-white p-8 rounded-2xl shadow-lg">
+                        <h3 class="text-2xl font-bold mb-4 text-center">Analyse du Marché Cible</h3>
+                        <p class="text-center text-[#739072] mt-2 mb-4">La stratégie cible des segments de marché à forte valeur, sensibles à notre proposition unique.</p>
+                        <div class="chart-container" style="max-width: 400px; height: 300px; margin: auto;">
+                            <canvas id="marketChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-8 rounded-2xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-center mb-4">Profils des Utilisateurs Clés</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <h4 class="font-bold text-[#3a4d39]">Coeur de Cible : Créatifs & Millennials Engagés</h4>
+                                <p class="text-[#3a4d39]">25-45 ans, CSP+. Ils recherchent des produits authentiques et durables, et sont prêts à payer pour des expériences qui reflètent leurs valeurs.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-[#3a4d39]">Marché Secondaire : Cadeaux & B2B (RSE)</h4>
+                                <p class="text-[#3a4d39]">Le marché du cadeau porteur de sens est en pleine expansion. Le segment B2B représente une opportunité de revenus récurrents et de volume.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-3xl font-bold text-center mb-8">Feuille de Route du Projet</h3>
+                <div id="roadmap-controls" class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
+                    <button data-phase="1" class="roadmap-btn active px-4 py-2 md:px-6 md:py-3 bg-white rounded-full shadow-md font-semibold text-[#3a4d39] transition-all duration-300">Phase 1: Prototype</button>
+                    <button data-phase="2" class="roadmap-btn px-4 py-2 md:px-6 md:py-3 bg-white rounded-full shadow-md font-semibold text-[#3a4d39] transition-all duration-300">Phase 2: Bêta-Test</button>
+                    <button data-phase="3" class="roadmap-btn px-4 py-2 md:px-6 md:py-3 bg-white rounded-full shadow-md font-semibold text-[#3a4d39] transition-all duration-300">Phase 3: Lancement</button>
+                    <button data-phase="4" class="roadmap-btn px-4 py-2 md:px-6 md:py-3 bg-white rounded-full shadow-md font-semibold text-[#3a4d39] transition-all duration-300">Phase 4: Extensions</button>
+                </div>
+                <div id="roadmap-content" class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg min-h-[250px] transition-all duration-300">
+                </div>
+            </div>
+        </section>
+
+        <section id="produit" class="py-20 md:py-24 bg-white">
+            <div class="container mx-auto px-4">
+                <header class="text-center mb-10">
+                    <h2 class="text-5xl font-bold pb-2 border-b-2 border-violet-200 inline-block">L'Expérience Produit</h2>
+                    <p class="text-xl mt-4 text-[#739072]">Voici une simulation du coeur de l'expérience utilisateur. L'interaction avec la carte et la découverte des arbres sont au centre de l'engagement client.</p>
+                </header>
+
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 min-h-[60vh] mb-12">
+                    <div class="lg:col-span-3 rounded-2xl shadow-lg h-full w-full flex items-center justify-center bg-white/50">
+                        <div id="map-container">
+                            <img src="https://i.imgur.com/C7gmR83.jpeg" alt="Carte du Monde Artistique" class="w-full h-auto rounded-2xl">
+                            <div class="hotspot" data-continent="Amérique Latine" style="top: 35%; left: 15%; width: 25%; height: 55%;"></div>
+                            <div class="hotspot" data-continent="Afrique" style="top: 32%; left: 45%; width: 22%; height: 40%;"></div>
+                            <div class="hotspot" data-continent="Europe" style="top: 18%; left: 47%; width: 16%; height: 20%;"></div>
+                            <div class="hotspot" data-continent="Asie" style="top: 20%; left: 62%; width: 35%; height: 45%;"></div>
+                            <div class="hotspot" data-continent="Océanie" style="top: 65%; left: 75%; width: 20%; height: 20%;"></div>
+                            <div id="tree-marker" class="hidden"></div>
+                        </div>
+                    </div>
+                    
+                    <aside id="info-panel" class="lg:col-span-2 bg-white/50 p-6 rounded-2xl shadow-lg flex flex-col justify-center items-center text-center">
+                        <div id="initial-message">
+                            <span class="text-6xl">🌍</span>
+                            <h3 class="text-3xl font-bold mt-4">Simulation de l'Interaction</h3>
+                            <p class="mt-2 text-lg">Cliquer sur un continent déclenchera l'affichage d'informations sur un arbre spécifique, démontrant l'aspect éducatif et personnalisé.</p>
+                        </div>
+                        <div id="tree-info" class="hidden w-full"></div>
+                    </aside>
+                </div>
+                
+                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-16">
+                     <div class="bg-white p-8 rounded-2xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-center mb-2 text-[#4F6F52]">Fonctionnalité d'Engagement : Le Générateur d'Histoires IA</h3>
+                        <p class="text-center text-[#3a4d39] mb-6">Pour renforcer le lien émotionnel, l'API Gemini génère une histoire unique pour chaque arbre. Ceci transforme une transaction en une expérience mémorable et un contenu facilement partageable, augmentant la viralité.</p>
+                        <div class="flex flex-col sm:flex-row gap-4 items-center justify-center mb-6">
+                            <select id="tree-type-selector" class="w-full sm:w-auto bg-stone-100 border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-violet-500 focus:border-violet-500 block p-2.5">
+                                <option selected value="un Baobab de Madagascar">Baobab de Madagascar</option>
+                                <option value="un Manguier d'Afrique de l'Ouest">Manguier d'Afrique</option>
+                                <option value="un Avocatier du Mexique">Avocatier du Mexique</option>
+                                <option value="un Eucalyptus d'Australie">Eucalyptus d'Australie</option>
+                                <option value="un Cerisier du Japon">Cerisier du Japon</option>
+                                <option value="un Pommier de Normandie">Pommier de Normandie</option>
+                            </select>
+                            <button id="generate-story-btn" class="w-full sm:w-auto text-white bg-violet-600 hover:bg-violet-700 focus:ring-4 focus:outline-none focus:ring-violet-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
+                                ✨ Démo
+                            </button>
+                        </div>
+                        <div id="story-result-container" class="p-6 bg-[#F9F5F0] rounded-lg min-h-[150px] flex items-center justify-center transition-all duration-300">
+                            <div id="gemini-loader-story" class="gemini-spinner hidden"></div>
+                            <p id="story-result-text" class="text-[#3a4d39] italic">Le récit généré par l'IA apparaîtra ici.</p>
+                        </div>
+                    </div>
+                     <div class="bg-white p-8 rounded-2xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-center mb-2 text-[#4F6F52]">Outil de Personnalisation : Nommez Votre Forêt ✨</h3>
+                        <p class="text-center text-[#3a4d39] mb-6">Démontrez le potentiel de personnalisation. Entrez des mots-clés et laissez l'IA créer des noms poétiques pour la forêt d'un client, renforçant l'attachement au produit.</p>
+                        <div class="flex flex-col sm:flex-row gap-4 items-center justify-center mb-6">
+                            <input type="text" id="forest-keywords-input" placeholder="Ex: Sahra, amour, 25 ans..." class="w-full sm:flex-grow bg-stone-100 border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-violet-500 focus:border-violet-500 block p-2.5">
+                            <button id="generate-forest-name-btn" class="w-full sm:w-auto text-white bg-violet-600 hover:bg-violet-700 focus:ring-4 focus:outline-none focus:ring-violet-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
+                               ✨ Démo
+                            </button>
+                        </div>
+                        <div id="forest-name-result-container" class="p-6 bg-[#F9F5F0] rounded-lg min-h-[150px] flex items-center justify-center transition-all duration-300">
+                            <div id="gemini-loader-forest-name" class="gemini-spinner hidden"></div>
+                            <p id="forest-name-result-text" class="text-[#3a4d39] italic">Les suggestions de noms pour la forêt apparaîtront ici.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="impact" class="py-20 md:py-24">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl md:text-4xl font-bold pb-2 border-b-2 border-violet-200 inline-block">Mission & Impact Mesurable</h2>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-[#3a4d39]">
+                        La crédibilité du projet repose sur un double impact quantifiable : environnemental et social. Cette section fournit les données clés qui soutiennent notre mission et justifient l'urgence d'agir.
+                    </p>
+                </div>
+
+                <div class="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                    <div class="bg-[#F9F5F0] p-6 md:p-8 rounded-lg shadow-lg">
+                        <h3 class="text-2xl font-bold text-center">Analyse des Causes de la Déforestation</h3>
+                        <p class="text-center text-[#739072] mt-2 mb-4">Comprendre les causes profondes nous permet de cibler les projets de reforestation les plus pertinents.</p>
+                        <div class="chart-container">
+                            <canvas id="deforestationCausesChart"></canvas>
+                        </div>
+                    </div>
+                     <div class="bg-[#F9F5F0] p-6 md:p-8 rounded-lg shadow-lg">
+                        <h3 class="text-2xl font-bold text-center">Simulateur d'Impact Personnalisé ✨</h3>
+                        <p class="text-center text-[#739072] mt-2 mb-4">Cet outil IA transforme un nombre abstrait d'arbres en un récit d'impact concret et chiffré.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center mb-4">
+                            <input type="number" id="impact-tree-count" value="50" class="sm:col-span-1 bg-stone-100 border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-violet-500 focus:border-violet-500 block p-2.5 w-full" placeholder="Nb. d'arbres">
+                             <select id="impact-region-selector" class="sm:col-span-1 bg-stone-100 border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-violet-500 focus:border-violet-500 block p-2.5 w-full">
+                                <option selected value="au Sahel">au Sahel (Afrique)</option>
+                                <option value="en Amazonie">en Amazonie</option>
+                                <option value="en Indonésie">en Indonésie</option>
+                            </select>
+                        </div>
+                         <button id="generate-impact-btn" class="w-full text-white bg-violet-600 hover:bg-violet-700 focus:ring-4 focus:outline-none focus:ring-violet-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
+                           ✨ Calculer l'Impact
+                        </button>
+                        <div id="impact-result-container" class="p-4 bg-white rounded-lg mt-4 min-h-[150px] flex items-center justify-center transition-all duration-300">
+                            <div id="gemini-loader-impact" class="gemini-spinner hidden"></div>
+                            <p id="impact-result-text" class="text-sm text-[#3a4d39] italic">La description de l'impact générée par l'IA apparaîtra ici.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+        
+        <section id="communaute" class="py-20 md:py-24 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl md:text-4xl font-bold pb-2 border-b-2 border-violet-200 inline-block">Potentiel Communautaire et Viral</h2>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-[#3a4d39]">
+                       Le produit est nativement social. Chaque carte murale est un ambassadeur du projet, conçu pour générer du contenu organique (UGC), renforcer la preuve sociale et réduire les coûts d'acquisition à long terme.
+                    </p>
+                </div>
+                <div class="mt-16">
+                    <h3 class="text-2xl font-bold text-center">Exemples de Contenu Généré par les Utilisateurs (UGC)</h3>
+                     <div class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <img src="https://i.imgur.com/fSQAfhb.png" alt="[Image d'une toile Arbomundi dans un salon]" class="rounded-lg shadow-md aspect-square object-cover">
+                        <img src="https://i.imgur.com/QlQngEZ.png" alt="[Image d'une toile Arbomundi dans un bureau]" class="rounded-lg shadow-md aspect-square object-cover mt-4 md:mt-0">
+                        <img src="https://i.imgur.com/4GbSEpo.jpeg" alt="[Image d'une toile Arbomundi en gros plan]" class="rounded-lg shadow-md aspect-square object-cover mt-4 md:mt-0">
+                        <img src="https://i.imgur.com/aAQMKEk.png" alt="[Image d'une toile Arbomundi dans une chambre]" class="rounded-lg shadow-md aspect-square object-cover mt-4 md:mt-0">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <div id="purchase-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center p-4 z-[100] opacity-0 pointer-events-none">
+        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center transform scale-95 opacity-0">
+            <!-- Le contenu sera injecté par JS -->
+        </div>
+    </div>
+
+
+    <footer class="bg-[#4F6F52] text-white">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-2xl font-bold"><img src="https://i.imgur.com/W1zWiNY.png" alt="Logo ArboMundi" width="45" height="45" style="display:inline-block;vertical-align:middle;margin-right:6px;">ArboMundi</p>
+            <p class="mt-4 text-[#ECE3CE]">Ensemble, faisons pousser des forêts.</p>
+            <p class="mt-8 text-sm text-[#ECE3CE]">&copy; 2025 ArboMundi. Tous droits réservés.</p>
+        </div>
+         <div class="bg-white text-center py-16 px-4 border-t-4 border-violet-300">
+            <h3 class="text-4xl font-bold text-violet-600 mb-6">💜 Pour Sahra 💜</h3>
+            <p class="max-w-3xl mx-auto text-black text-lg leading-relaxed">
+                Ce projet est né grâce à toi, à ce premier arbre que tu m’as offert comme un symbole de renaissance.
+            </p>
+            <p class="max-w-3xl mx-auto text-black text-lg mt-4 leading-relaxed">
+                Aujourd'hui, je te dédie ArboMundi, ce projet, ce rêve. C'est le reflet de ton inspiration. Que chaque arbre symbolique planté ici soit une trace de <span class="font-semibold text-violet-600">notre amour</span> qui grandit dans ce monde.
+            </p>
+            <p class="mt-10 text-2xl font-semibold text-black">Joyeux 25 ans, ma future femme. Je t'aime.</p>
+        </div>
+    </footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const data = {
+                deforestationCauses: {
+                    labels: ['Agriculture (Soja, Palme)', 'Élevage Bovin', 'Exploitation du bois', 'Urbanisation & Autres'],
+                    data: [50, 40, 6, 4],
+                },
+                market: {
+                    labels: ['Coeur de Cible (Créatifs, Millennials)', 'Marché Secondaire (Cadeaux)', 'Marché B2B (Entreprises RSE)'],
+                    data: [60, 25, 15]
+                },
+                roadmap: {
+                    '1': `<div class="fade-in"><h3 class="text-2xl font-bold text-[#4F6F52] mb-4">Phase 1: Prototype & Préparation (8 semaines)</h3><ul class="space-y-2 list-disc list-inside text-[#3a4d39]"><li>Finalisation du design de la carte et des 10 premiers stickers.</li><li>Sélection et commande des prototypes physiques.</li><li>Mise en place du partenariat de reforestation.</li><li>Développement du site vitrine avec paiement simple.</li></ul></div>`,
+                    '2': `<div class="fade-in"><h3 class="text-2xl font-bold text-[#4F6F52] mb-4">Phase 2: Bêta-Test (6 semaines)</h3><ul class="space-y-2 list-disc list-inside text-[#3a4d39]"><li>Recrutement de 50 "early adopters".</li><li>Envoi des kits et collecte active des retours (UX, qualité, storytelling).</li><li>Analyse des feedbacks et ajustements finaux.</li></ul></div>`,
+                    '3': `<div class="fade-in"><h3 class="text-2xl font-bold text-[#4F6F52] mb-4">Phase 3: Lancement Officiel (12 semaines)</h3><ul class="space-y-2 list-disc list-inside text-[#3a4d39]"><li>Lancement du site e-commerce complet.</li><li>Première campagne marketing (réseaux sociaux, relations presse).</li><li>Développement de l'offre "Entreprise" et des packs cadeaux.</li></ul></div>`,
+                    '4': `<div class="fade-in"><h3 class="text-2xl font-bold text-[#4F6F52] mb-4">Phase 4: Croissance et Extensions</h3><ul class="space-y-2 list-disc list-inside text-[#3a4d39]"><li>Introduction de nouveaux designs de cartes (régionales, thématiques).</li><li>Création de "collections" de stickers par écosystème.</li><li>Exploration de partenariats avec des artistes pour des éditions limitées.</li></ul>
+                    <div class="mt-8 bg-violet-50 p-6 rounded-lg">
+                        <h4 class="text-xl font-bold text-center text-violet-800 mb-4">Boîte à Idées IA ✨</h4>
+                        <p class="text-center text-violet-700 mb-4">Démontrons le potentiel d'innovation. Cliquez pour que l'IA suggère des pistes d'évolution pour le projet.</p>
+                        <button id="generate-ideas-btn" class="mx-auto block text-white bg-violet-600 hover:bg-violet-700 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">✨ Suggérer 3 idées de collections</button>
+                        <div id="ideas-result-container" class="mt-4 text-sm text-violet-900"></div>
+                        <div id="gemini-loader-ideas" class="gemini-spinner mx-auto mt-4 hidden"></div>
+                    </div>
+                    </div>`
+                },
+                knowledgeEngine: {
+                    "Afrique": [ { name: "Baobab", scientific: "Adansonia digitata", emoji: "🌳", region: "Sahel", reason: "Surnommé 'l'arbre de vie', le Baobab est résistant à la sécheresse. Son fruit, riche en vitamines, est une source de nourriture et de revenus.", benefits: ["Nourriture", "Résistance sécheresse", "Revenus"] }, { name: "Manguier", scientific: "Mangifera indica", emoji: "🥭", region: "Afrique de l'Ouest", reason: "Planté dans les communautés, le manguier offre une sécurité alimentaire grâce à ses fruits délicieux et nutritifs, et crée des opportunités économiques.", benefits: ["Sécurité alimentaire", "Fruitiers", "Économie locale"] } ],
+                    "Amérique Latine": [ { name: "Avocatier", scientific: "Persea americana", emoji: "🥑", region: "Mexique, Andes", reason: "Cultivé en agroforesterie, l'avocatier protège les sols de l'érosion et constitue une source de revenus majeure pour les petits agriculteurs.", benefits: ["Revenus agricoles", "Agroforesterie", "Protection des sols"] }, { name: "Goyavier", scientific: "Psidium guajava", emoji: "🍈", region: "Régions tropicales", reason: "Le goyavier pousse rapidement et produit des fruits riches en vitamine C. Il s'adapte à divers sols et aide à la restauration rapide de la couverture végétale.", benefits: ["Fruitiers", "Restauration rapide", "Nutrition"] } ],
+                    "Asie": [ { name: "Cerisier du Japon", scientific: "Prunus serrulata", emoji: "🍒", region: "Japon", reason: "Au-delà de sa beauté iconique (Sakura), le cerisier joue un rôle dans la biodiversité en offrant une source de nourriture pour les oiseaux et les insectes au printemps.", benefits: ["Culturel", "Biodiversité", "Beauté"] }, { name: "Ginkgo Biloba", scientific: "Ginkgo biloba", emoji: "🍂", region: "Chine", reason: "Véritable fossile vivant, cet arbre est incroyablement résilient à la pollution urbaine et aux maladies. Il est planté pour sa beauté et sa longévité symbolique.", benefits: ["Résilience urbaine", "Patrimoine", "Médicinal"] } ],
+                    "Europe": [ { name: "Pommier", scientific: "Malus domestica", emoji: "🍎", region: "Vergers traditionnels", reason: "Planter des pommiers de variétés anciennes préserve la diversité génétique, soutient les pollinisateurs et favorise les circuits courts et l'économie locale.", benefits: ["Biodiversité génétique", "Économie locale", "Fruitiers"] }, { name: "Chêne Pédonculé", scientific: "Quercus robur", emoji: "🌳", region: "Systèmes Sylvopastoraux", reason: "Le chêne est la pierre angulaire des paysages agroforestiers. Il fournit de l'ombre et de la nourriture pour le bétail, et abrite une riche biodiversité.", benefits: ["Biodiversité", "Pâturage", "Patrimoine culturel"] } ],
+                    "Océanie": [ { name: "Eucalyptus", scientific: "Eucalyptus globulus", emoji: "🐨", region: "Australie", reason: "Essentiel à l'écosystème australien, l'eucalyptus fournit l'habitat et la nourriture pour des espèces emblématiques comme le koala. Il est adapté aux conditions arides.", benefits: ["Habitat faunique", "Résilience sécheresse", "Culturel"] }, { name: "Acacia", scientific: "Acacia melanoxylon", emoji: "🌿", region: "Sud-Est de l'Australie", reason: "Cet acacia à croissance rapide est un excellent pionnier pour la régénération des terres dégradées, améliorant la structure et la fertilité du sol.", benefits: ["Régénération des sols", "Espèce pionnière", "Croissance rapide"] } ]
+                },
+                continentMarkerCoordinates: { "Afrique": { top: '52%', left: '56%' }, "Amérique Latine": { top: '62%', left: '27%' }, "Asie": { top: '42%', left: '78%' }, "Europe": { top: '28%', left: '55%' }, "Océanie": { top: '75%', left: '85%' } }
+            };
+
+            const charts = {};
+
+            async function callGemini(prompt) {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+                
+                const result = await response.json();
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    throw new Error("La réponse de l'API est invalide.");
+                }
+            }
+
+            function createDeforestationChart() {
+                const ctx = document.getElementById('deforestationCausesChart')?.getContext('2d');
+                if (!ctx) return;
+                if (charts.deforestation) charts.deforestation.destroy();
+                charts.deforestation = new Chart(ctx, { type: 'bar', data: { labels: data.deforestationCauses.labels, datasets: [{ label: '% de la déforestation', data: data.deforestationCauses.data, backgroundColor: ['#739072', '#8B9D83', '#38BDF8', '#D1C7B8'], borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { display: false } } } } });
+            }
+
+            function createMarketChart() {
+                const ctx = document.getElementById('marketChart')?.getContext('2d');
+                if (!ctx) return;
+                if (charts.market) charts.market.destroy();
+                charts.market = new Chart(ctx, { type: 'doughnut', data: { labels: data.market.labels, datasets: [{ label: 'Répartition du Marché', data: data.market.data, backgroundColor: ['#4F6F52', '#739072', '#8B5CF6'], borderColor: '#fff', borderWidth: 4, hoverOffset: 8 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#3a4d39' } } }, cutout: '60%' } });
+            }
+            
+            function showPurchaseModal(tree) {
+                const modal = document.getElementById('purchase-modal');
+                const modalContent = document.getElementById('modal-content');
+                
+                modalContent.innerHTML = `
+                    <h3 class="text-2xl font-bold mb-4">Bravo pour votre ${tree.name}! ${tree.emoji}</h3>
+                    <p class="text-gray-600 mb-6">Vous êtes sur le point de transformer un geste en une forêt. Voici ce qu'il se passera après votre paiement :</p>
+                    <div class="text-left space-y-4 mb-8">
+                        <div class="flex items-start gap-4">
+                            <div class="bg-violet-100 text-violet-600 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center font-bold">1</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Preuve de Plantation</h4>
+                                <p class="text-sm text-gray-500">Vous recevrez un certificat digital attestant de la plantation de votre arbre par notre partenaire.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="bg-violet-100 text-violet-600 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center font-bold">2</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Votre Toile du Monde</h4>
+                                <p class="text-sm text-gray-500">(Si c'est votre premier arbre) Nous vous enverrons votre carte du monde personnelle, prête à être accrochée.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4">
+                             <div class="bg-violet-100 text-violet-600 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center font-bold">3</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Votre Sticker d'Arbre</h4>
+                                <p class="text-sm text-gray-500">Vous recevrez le sticker unique de votre ${tree.name} à coller sur votre toile, pour voir votre forêt grandir.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="close-modal-btn" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors">Fermer</button>
+                `;
+
+                modal.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+                modal.classList.add('visible');
+
+                document.getElementById('close-modal-btn').addEventListener('click', hidePurchaseModal);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        hidePurchaseModal();
+                    }
+                });
+            }
+
+            function hidePurchaseModal() {
+                const modal = document.getElementById('purchase-modal');
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                modal.classList.remove('visible');
+            }
+
+            function handleInteractiveMap() {
+                const infoPanel = document.getElementById('info-panel');
+                const hotspots = document.querySelectorAll('.hotspot');
+                const initialMessage = document.getElementById('initial-message');
+                const marker = document.getElementById('tree-marker');
+
+                infoPanel.addEventListener('click', (e) => {
+                    if (e.target && e.target.classList.contains('btn-plant')) {
+                        const treeName = e.target.dataset.treeName;
+                        const treeEmoji = e.target.dataset.treeEmoji;
+                        showPurchaseModal({ name: treeName, emoji: treeEmoji });
+                    }
+                });
+
+                hotspots.forEach(hotspot => {
+                    hotspot.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const continentName = hotspot.dataset.continent;
+                        const possibleTrees = data.knowledgeEngine[continentName];
+                        if (!possibleTrees) return;
+                        const selectedTree = possibleTrees[Math.floor(Math.random() * possibleTrees.length)];
+                        
+                        initialMessage.classList.add('hidden');
+                        infoPanel.classList.remove('hidden');
+                        infoPanel.innerHTML = `<div class="fade-in">
+                            <span class="text-7xl mb-4">${selectedTree.emoji}</span>
+                            <h2 class="text-4xl font-bold">${selectedTree.name}</h2>
+                            <p class="text-md italic text-gray-500 mb-4">${selectedTree.scientific}</p>
+                            <div class="bg-[#ECE3CE]/60 px-3 py-1 rounded-full text-sm font-semibold mb-4 inline-block">${selectedTree.region}</div>
+                            <h3 class="text-xl font-bold mb-2">Pourquoi cet arbre?</h3>
+                            <p class="text-left mb-6">${selectedTree.reason}</p>
+                            <button class="btn-plant w-full text-white font-bold py-3 px-6 rounded-lg shadow-lg" data-tree-name="${selectedTree.name}" data-tree-emoji="${selectedTree.emoji}">
+                                Plantez cet Arbre
+                            </button>
+                        </div>`;
+
+                        const coords = data.continentMarkerCoordinates[continentName];
+                        marker.innerText = selectedTree.emoji;
+                        marker.style.top = coords.top;
+                        marker.style.left = coords.left;
+                        marker.classList.remove('hidden');
+                    });
+                });
+            }
+
+            function populateCardGallery() {
+                const gallery = document.getElementById('card-gallery');
+                if (!gallery) return;
+                gallery.innerHTML = '';
+                for (const continent in data.knowledgeEngine) {
+                    data.knowledgeEngine[continent].forEach(tree => {
+                        const card = document.createElement('div');
+                        card.className = 'card-container bg-white p-6 rounded-2xl shadow-md fade-in';
+                        card.setAttribute('data-continent', continent);
+                        card.innerHTML = `<div class="flex items-center mb-4"><span class="text-5xl mr-4">${tree.emoji}</span><div><h3 class="text-2xl font-bold">${tree.name}</h3><p class="text-sm italic text-gray-500">${tree.scientific}</p></div></div><div class="bg-[#ECE3CE]/60 px-3 py-1 rounded-full text-sm font-semibold mb-4 inline-block">${tree.region}, ${continent}</div><p class="text-sm mb-4">${tree.reason}</p><div class="flex flex-wrap gap-2">${tree.benefits.map(b => `<span class="bg-gray-200 text-gray-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${b}</span>`).join('')}</div>`;
+                        gallery.appendChild(card);
+                    });
+                }
+            }
+
+            function handleFilters() {
+                const filterButtons = document.querySelectorAll('.filter-btn');
+                const gallery = document.getElementById('card-gallery');
+                if(!gallery) return;
+
+                filterButtons.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const filter = e.target.getAttribute('data-filter');
+                        filterButtons.forEach(btn => btn.classList.remove('active'));
+                        e.target.classList.add('active');
+                        gallery.querySelectorAll('.card-container').forEach(card => {
+                            if (filter === 'All' || card.getAttribute('data-continent') === filter) { 
+                                card.style.display = 'block'; 
+                            } else { 
+                                card.style.display = 'none'; 
+                            }
+                        });
+                    });
+                });
+            }
+
+            function handleRoadmap() {
+                const controls = document.getElementById('roadmap-controls');
+                const content = document.getElementById('roadmap-content');
+                if (!controls || !content) return;
+                
+                content.innerHTML = data.roadmap['1'];
+
+                controls.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') {
+                        const phase = e.target.dataset.phase;
+                        controls.querySelector('.active').classList.remove('active');
+                        e.target.classList.add('active');
+                        content.innerHTML = data.roadmap[phase];
+                        if (phase === '4') {
+                            handleGeminiExtensionIdeas();
+                        }
+                    }
+                });
+            }
+
+            function handleGeminiStoryGenerator() {
+                const generateStoryBtn = document.getElementById('generate-story-btn');
+                const treeTypeSelector = document.getElementById('tree-type-selector');
+                const storyResultText = document.getElementById('story-result-text');
+                const geminiLoader = document.getElementById('gemini-loader-story');
+
+                if (!generateStoryBtn) return;
+
+                generateStoryBtn.addEventListener('click', async () => {
+                    const selectedTree = treeTypeSelector.value;
+                    const prompt = `Raconte-moi une courte histoire poétique et inspirante (environ 100 mots) sur la plantation d'un ${selectedTree}. L'histoire doit évoquer l'espoir, la croissance et le lien profond entre l'humanité et la nature. Le ton doit être optimiste et merveilleux.`;
+                    
+                    storyResultText.classList.add('hidden');
+                    geminiLoader.classList.remove('hidden');
+
+                    try {
+                        const generatedText = await callGemini(prompt);
+                        storyResultText.innerText = generatedText.replace(/\*/g, '');
+                    } catch (error) {
+                        console.error('Error calling Gemini API:', error);
+                        storyResultText.innerText = "Désolé, une erreur est survenue. Veuillez réessayer.";
+                    } finally {
+                        geminiLoader.classList.add('hidden');
+                        storyResultText.classList.remove('hidden');
+                    }
+                });
+            }
+
+            function handleGeminiPitchGenerator() {
+                const generatePitchBtn = document.getElementById('generate-pitch-btn');
+                const pitchTargetInput = document.getElementById('pitch-target-input');
+                const pitchResultText = document.getElementById('pitch-result-text');
+                const geminiLoader = document.getElementById('gemini-loader-pitch');
+
+                if (!generatePitchBtn) return;
+
+                generatePitchBtn.addEventListener('click', async () => {
+                    const target = pitchTargetInput.value || "un investisseur potentiel";
+                    const prompt = `En tant que consultant en stratégie pour le projet ArboMundi, rédige un court paragraphe (environ 120 mots) pour convaincre la cible suivante : "${target}". Met en avant les aspects les plus pertinents d'ArboMundi pour cette cible, en insistant sur notre business model (produit physique tangible), notre impact social et environnemental certifié, et le potentiel viral de notre communauté. Le ton doit être professionnel, convaincant et inspirant.`;
+                    
+                    pitchResultText.classList.add('hidden');
+                    geminiLoader.classList.remove('hidden');
+
+                    try {
+                        const generatedText = await callGemini(prompt);
+                        pitchResultText.innerText = generatedText.replace(/\*/g, '');
+                    } catch (error) {
+                        console.error('Error calling Gemini API:', error);
+                        pitchResultText.innerText = "Désolé, une erreur est survenue. Veuillez réessayer.";
+                    } finally {
+                        geminiLoader.classList.add('hidden');
+                        pitchResultText.classList.remove('hidden');
+                    }
+                });
+            }
+            
+            function handleGeminiExtensionIdeas() {
+                const generateIdeasBtn = document.getElementById('generate-ideas-btn');
+                if (!generateIdeasBtn) return;
+
+                generateIdeasBtn.addEventListener('click', async () => {
+                    const ideasResultContainer = document.getElementById('ideas-result-container');
+                    const geminiLoader = document.getElementById('gemini-loader-ideas');
+                    const prompt = `En tant que chef de produit pour ArboMundi, propose 3 idées créatives et concises pour de nouvelles collections de stickers thématiques. Pour chaque idée, donne un titre accrocheur et une courte justification marketing. Formatte la réponse en utilisant des titres (ex: "**Titre de l'idée**") et de courtes descriptions.`;
+                    
+                    ideasResultContainer.innerHTML = '';
+                    geminiLoader.classList.remove('hidden');
+                    generateIdeasBtn.disabled = true;
+
+                    try {
+                        let generatedText = await callGemini(prompt);
+                        generatedText = generatedText.replace(/\*\*(.*?)\*\*/g, '<h5 class="font-bold mt-3 text-violet-800">$1</h5>');
+                        ideasResultContainer.innerHTML = generatedText;
+                    } catch (error) {
+                        console.error('Error calling Gemini API:', error);
+                        ideasResultContainer.innerText = "Désolé, une erreur est survenue lors de la génération d'idées.";
+                    } finally {
+                        geminiLoader.classList.add('hidden');
+                        generateIdeasBtn.disabled = false;
+                    }
+                });
+            }
+
+            function handleGeminiForestNameGenerator() {
+                const generateBtn = document.getElementById('generate-forest-name-btn');
+                const keywordsInput = document.getElementById('forest-keywords-input');
+                const resultContainer = document.getElementById('forest-name-result-text');
+                const loader = document.getElementById('gemini-loader-forest-name');
+                if (!generateBtn) return;
+                generateBtn.addEventListener('click', async () => {
+                    const keywords = keywordsInput.value || "rêve, nature, partage";
+                    const prompt = `Crée 3 noms poétiques et créatifs pour une "forêt mondiale" personnelle basée sur les mots-clés suivants : "${keywords}". Les noms doivent être courts, inspirants et en français. Formatte la réponse comme une simple liste de 3 noms, séparés par des sauts de ligne.`;
+                    resultContainer.classList.add('hidden');
+                    loader.classList.remove('hidden');
+                    try {
+                        const generatedText = await callGemini(prompt);
+                        resultContainer.innerText = generatedText.replace(/\*/g, '');
+                    } catch (error) {
+                        console.error('Error calling Gemini API for forest name:', error);
+                        resultContainer.innerText = "Désolé, une erreur est survenue.";
+                    } finally {
+                        loader.classList.add('hidden');
+                        resultContainer.classList.remove('hidden');
+                    }
+                });
+            }
+            
+            function handleGeminiImpactSimulator() {
+                const generateBtn = document.getElementById('generate-impact-btn');
+                const treeCountInput = document.getElementById('impact-tree-count');
+                const regionSelector = document.getElementById('impact-region-selector');
+                const resultContainer = document.getElementById('impact-result-text');
+                const loader = document.getElementById('gemini-loader-impact');
+                if (!generateBtn) return;
+                generateBtn.addEventListener('click', async () => {
+                    const treeCount = treeCountInput.value || 50;
+                    const region = regionSelector.value;
+                    const prompt = `Rédige un court paragraphe (environ 100 mots) décrivant l'impact concret de la plantation de ${treeCount} arbres ${region}. Inclus des estimations chiffrées (fictives mais réalistes) sur le CO2 séquestré, la biodiversité (espèces supportées), et l'impact social (ex: jours de travail créés, familles soutenues). Le ton doit être positif, factuel et inspirant pour un partenaire potentiel.`;
+                    resultContainer.classList.add('hidden');
+                    loader.classList.remove('hidden');
+                    try {
+                        const generatedText = await callGemini(prompt);
+                        resultContainer.innerText = generatedText.replace(/\*/g, '');
+                    } catch (error) {
+                        console.error('Error calling Gemini API for impact simulation:', error);
+                        resultContainer.innerText = "Désolé, une erreur est survenue.";
+                    } finally {
+                        loader.classList.add('hidden');
+                        resultContainer.classList.remove('hidden');
+                    }
+                });
+            }
+
+
+            function handleNav() {
+                const mobileMenu = document.getElementById('mobile-menu');
+                const menuButton = document.getElementById('mobile-menu-button');
+                const openIcon = document.getElementById('menu-icon-open');
+                const closeIcon = document.getElementById('menu-icon-close');
+
+                menuButton.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('hidden');
+                    openIcon.classList.toggle('hidden');
+                    closeIcon.classList.toggle('hidden');
+                });
+                
+                document.querySelectorAll('.nav-link-mobile, .nav-link').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (!mobileMenu.classList.contains('hidden')) {
+                            mobileMenu.classList.add('hidden');
+                            openIcon.classList.remove('hidden');
+                            closeIcon.classList.add('hidden');
+                        }
+                    });
+                });
+            }
+            
+            function handleScrollspy() {
+                const sections = document.querySelectorAll('section[id]');
+                const navLinks = document.querySelectorAll('.nav-link');
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            let activeLink = null;
+                            navLinks.forEach(link => {
+                                link.classList.remove('active');
+                                if (link.getAttribute('href').substring(1) === entry.target.id) {
+                                   activeLink = link;
+                                }
+                            });
+                             if(activeLink) activeLink.classList.add('active');
+                        }
+                    });
+                }, { rootMargin: '-40% 0px -60% 0px' });
+
+                sections.forEach(section => observer.observe(section));
+            }
+
+            // Initial calls
+            createDeforestationChart();
+            createMarketChart();
+            handleInteractiveMap();
+            populateCardGallery();
+            handleFilters();
+            handleRoadmap();
+            handleGeminiStoryGenerator();
+            handleGeminiPitchGenerator();
+            handleGeminiForestNameGenerator();
+            handleGeminiImpactSimulator();
+            handleNav();
+            handleScrollspy();
+        });
+    </script>
+</body>
+</html>
